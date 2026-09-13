@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Noba owner menu." />
+    <title>Noba Owner Menu</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="mainmenu-app"></div>
+    <script>
+      const OWNER_SESSION_KEY = "noba.owner.session";
+      const OWNER_CREDENTIALS = {
+        "bd0ef1bd9199dd1c1f4a3c475db90d4d9a51e398b79084c6fc536da14f670fa5": "526b7f656ae5062b8b6accf73e4750b7189e2016d206223f44409d4d660c3658",
+        "072b558ec9636d2048bf818c7ad3e1fd8e3c3f9a70104fc9d1f95227bb61af32": "b9879b296269ce4019fd80a11d5760ed8440cd2c8fc124386fc1a2fca4940649",
+      };
+
+      const root = document.getElementById("mainmenu-app");
+
+      function isOwnerAuthenticated() {
+        return localStorage.getItem(OWNER_SESSION_KEY) === "1";
+      }
+
+      function setOwnerAuthenticated(value) {
+        if (value) {
+          localStorage.setItem(OWNER_SESSION_KEY, "1");
+        } else {
+          localStorage.removeItem(OWNER_SESSION_KEY);
+        }
+      }
+
+      async function hashString(value) {
+        const digest = await crypto.subtle.digest(
+          "SHA-256",
+          new TextEncoder().encode(String(value || "").trim())
+        );
+
+        return Array.from(new Uint8Array(digest))
+          .map((byte) => byte.toString(16).padStart(2, "0"))
+          .join("");
+      }
+
+      function ownerLoginPage(error = "") {
+        return `
+          <div class="page">
+            <header class="site-header">
+              <span class="mark" aria-label="Noba home">
+                <img src="favicon.svg" alt="Noba" class="brand-mark" />
+                <span>Noba</span>
+              </span>
+              <nav class="nav">
+                <a href="index.html#/">Get</a>
+                <a href="index.html#/signin">Sign in</a>
+              </nav>
+            </header>
+            <main class="stack owner-login-wrap">
+              <h1>Owner menu access</h1>
+              <p class="lede">Enter the correct owner credentials to access the owner menu.</p>
+              <form class="ticket owner-login" id="owner-menu-login-form">
+                <label>
+                  Email
+                  <input type="email" name="ownerEmail" placeholder="Enter owner email" required />
+                </label>
+                <label>
+                  Password
+                  <input type="password" name="ownerPassword" placeholder="Enter owner password" required />
+                </label>
+                ${error ? `<p class="form-error" role="alert">${escapeHtml(error)}</p>` : ""}
+                <button class="btn btn-solid" type="submit">Open owner menu</button>
+              </form>
+            </main>
+            <footer class="site-footer">
+              <p>Owner-only menu.</p>
+            </footer>
+          </div>
+        `;
+      }
+
+      function ownerMenuPage() {
+        return `
+          <div class="page">
+            <header class="site-header">
+              <span class="mark" aria-label="Noba home">
+                <img src="favicon.svg" alt="Noba" class="brand-mark" />
+                <span>Noba</span>
+              </span>
+              <nav class="nav">
+                <a href="#" id="owner-menu-logout">Log out</a>
+              </nav>
+            </header>
+            <main class="stack owner-wrap">
+              <h1>Owner menu</h1>
+              <p class="lede">This menu is only available with the correct credentials.</p>
+
+              <div class="hero-actions">
+                <a class="btn btn-solid" href="index.html#/">Open customer site</a>
+                <a class="btn btn-ghost" href="index.html#/license">Open licences</a>
+              </div>
+            </main>
+            <footer class="site-footer">
+              <p>Owner-only menu.</p>
+            </footer>
+          </div>
+        `;
+      }
+
+      function escapeHtml(value) {
+        return String(value)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;");
+      }
+
+      function bindOwnerLoginForm() {
+        const form = document.getElementById("owner-menu-login-form");
+        if (!form) return;
+
+        form.addEventListener("submit", async (event) => {
+          event.preventDefault();
+          const email = (form.elements.ownerEmail?.value || "").trim();
+          const password = (form.elements.ownerPassword?.value || "").trim();
+
+          if (!email.includes("@")) {
+            root.innerHTML = ownerLoginPage("Enter a valid email.");
+            bindOwnerLoginForm();
+            return;
+          }
+
+          const hashedEmail = await hashString(email.toLowerCase());
+          const hashedPassword = await hashString(password);
+          const isCorrect = Boolean(OWNER_CREDENTIALS[hashedEmail] && OWNER_CREDENTIALS[hashedEmail] === hashedPassword);
+
+          if (!isCorrect) {
+            root.innerHTML = ownerLoginPage("Incorrect owner credentials.");
+            bindOwnerLoginForm();
+            return;
+          }
+
+          setOwnerAuthenticated(true);
+          render();
+        });
+      }
+
+      function bindOwnerLogout() {
+        const button = document.getElementById("owner-menu-logout");
+        if (!button) return;
+
+        button.addEventListener("click", (event) => {
+          event.preventDefault();
+          setOwnerAuthenticated(false);
+          render();
+        });
+      }
+
+      function render() {
+        if (!isOwnerAuthenticated()) {
+          root.innerHTML = ownerLoginPage();
+          bindOwnerLoginForm();
+          return;
+        }
+
+        root.innerHTML = ownerMenuPage();
+        bindOwnerLogout();
+      }
+
+      render();
+    </script>
+  </body>
+</html>
